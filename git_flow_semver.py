@@ -11,6 +11,12 @@ TargetPath = ''
 VersionMatch = ''
 VersionString = ''
 TargetContents = ''
+Verbose = False
+
+def printVerbose(s):
+	if Verbose:
+		print s
+##
 
 def flowStart(action, increment):
 	version = Version(VersionString)
@@ -29,51 +35,63 @@ def flowStart(action, increment):
 		sys.exit()
 
 	newContents = TargetContents[:VersionMatch.start(1)] + newVersionString + TargetContents[VersionMatch.end(1):]
-
 	with open(TargetPath, 'w+') as fTarget:
 		fTarget.write(newContents)
+
+	subprocess.call(['git', 'add', TargetPath])
 ##
 
 if __name__ == '__main__':
+	argParser = ArgumentParser()
+	argParser.add_argument('cmd', choices=['print', 'hotfix', 'release'], nargs='?', default='print')
+	argParser.add_argument('inc', choices=['major', 'minor', 'patch'], nargs='?', default='patch')
+	argParser.add_argument('-v', '--verbose', action='store_true')
+	args = argParser.parse_args()
+	
+	Verbose = args.verbose
+	printVerbose('running in verbose mode')
+
+
 	SectionName = 'config'
 	TargetKey = 'version_file'
 	PatternKey = 'version_pattern'
 	DefaultTarget = './.version'
 	DefaultTargetContents = 'Version = 0.0.0'
-	DefaultPattern = 'Version\s*=\s*(\d.\d.\d)'
+	DefaultPattern = 'Version\s*=\s*(\d+.\d+.\d+)'
 
-	cwd = os.getcwd()
-	strConfPath = cwd + '/.git_flow_semver'
-	conf = None
+	cwd = os.getcwd() + '/'
+	strConfPath = cwd + '.git_flow_semver'
+	printVerbose('using config file on : ' + strConfPath)
+	conf = ConfigParser()
 	try:
-		conf = ConfigParser(strConfPath)
-	except:
-		conf = ConfigParser()
+		conf.read(strConfPath)
+	except Exception:
+		printVerbose('no config file exists')
 
 	if not conf.has_section(SectionName):
+		printVerbose('making a new config file with default settings')
 		conf.add_section(SectionName)
 		conf.set(SectionName, TargetKey, DefaultTarget)
 		conf.set(SectionName, PatternKey, DefaultPattern)
 		with open(strConfPath, 'w+') as fConf:
 			conf.write(fConf)
+			printVerbose('config written on :' + strConfPath)
 		with open(DefaultTarget, 'w+') as fTarget:
 			fTarget.write(DefaultTargetContents)
+			printVerbose('version information written on :' + DefaultTarget)
+	##
 
-	TargetPath = conf.get(SectionName, TargetKey)
+	TargetPath = cwd + conf.get(SectionName, TargetKey)
 	strVersionPattern = conf.get(SectionName, PatternKey)
 
 	with open(TargetPath, 'r') as fTarget:
 		TargetContents = fTarget.read()
+	printVerbose('using version info on : ' + TargetPath)
 	VersionMatch = re.search(strVersionPattern, TargetContents)
 	VersionString = VersionMatch.group(1)
 
-	argParser = ArgumentParser()
-	argParser.add_argument('cmd', choices=['print', 'hotfix', 'release'])
-	argParser.add_argument('inc', choices=['major', 'minor', 'patch'], nargs='?', default='patch')
-	args = argParser.parse_args()
-
 	if args.cmd == 'print':
-		print VersionString
+		print 'current version : ' + VersionString
 	elif args.cmd == 'hotfix':
 		flowStart('hotfix', args.inc)
 	elif args.cmd == 'release':
