@@ -24,8 +24,11 @@ def flowStart(action, increment):
 		version.patch += 1
 	elif increment == 'minor':
 		version.minor += 1
+		version.patch = 0
 	elif increment == 'major':
 		version.major += 1
+		version.minor = 0
+		version.patch = 0
 	else:
 		raise Exception('unexpected increment target')
 
